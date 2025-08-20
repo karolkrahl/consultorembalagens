@@ -275,4 +275,82 @@ if submitted:
         # Fallback heurístico se a IA não trouxer valor
         dims_caixa = parse_dimensions(caixa.get("dimensoes_cm","")) or (c, l, a)
         custo_est = estimate_packaging_cost(*dims_caixa, fragilidade=fragilidade) if custo_ai is None else float(custo_ai)
-        st.metric("Custo estimado da embalagem", f"
+        st.metric("Custo estimado da embalagem", f"R${custo_est:.2f}")
+        st.caption(custos.get("observacoes", "Estimativa baseada em preço médio de mercado."))
+
+    # Riscos, cubagem, boas práticas
+    st.subheader("⚠️ Riscos & mitigação")
+    for r in result.get("riscos_e_mitigacoes", []):
+        st.write(f"- **{r.get('risco','')}:** {r.get('mitigacao','')}")
+
+    st.subheader("📉 Impacto na cubagem")
+    st.write(result.get("impacto_cubagem", {}).get("comentario", ""))
+
+    st.subheader("🧪 Boas práticas")
+    for bp in result.get("boas_praticas", []):
+        st.write(f"- {bp}")
+
+    # ===== Frete (SuperFrete) =====
+    st.divider()
+    st.markdown("### 🚚 Estimativa de frete (SuperFrete)")
+
+    cep_from_s = sanitize_cep(cep_from)
+    cep_to_s   = sanitize_cep(cep_to)
+
+    if not cep_from_s:
+        st.info("Informe um **CEP de origem** válido para simular o frete.")
+    elif not cep_to_s:
+        st.info("Informe um **CEP de destino** para ver o preço e prazo.")
+    elif not SUPERFRETE_API_TOKEN:
+        st.warning("Token da SuperFrete não configurado no servidor (SUPERFRETE_API_TOKEN).")
+    else:
+        # Usar dimensões da EMBALAGEM recomendada (se existir), senão as do item
+        Cc, Ll, Aa = dims_caixa  # cm
+        # Peso final: considerar embalagem (≈+50g) e peso cubado da EMBALAGEM
+        peso_extra = 0.05
+        peso_real_final = float(peso) + peso_extra
+        cubado_caixa = cubagem_kg(Cc, Ll, Aa, fator=6000.0)
+        peso_para_cotacao = max(peso_real_final, cubado_caixa)
+
+        with st.spinner("Consultando fretes na SuperFrete..."):
+            cot = call_superfrete_quote(
+                token=SUPERFRETE_API_TOKEN,
+                cep_from=cep_from_s,
+                cep_to=cep_to_s,
+                length_cm=Cc, width_cm=Ll, height_cm=Aa,
+                weight_kg=peso_para_cotacao
+            )
+
+        if cot.get("error"):
+            st.error(cot["error"])
+        else:
+            bp = cot["best_price"]; bt = cot["best_time"]
+            colp, colt = st.columns(2)
+            with colp:
+                st.subheader("💵 Melhor preço")
+                st.write(f"**Transportadora/serviço:** {bp.get('company',{}).get('name','-')} {bp.get('service','')}")
+                st.write(f"**Preço:** R${float(bp.get('price',0)):.2f}")
+                dias = (bp.get('delivery_time') or {}).get('days')
+                if dias: st.write(f"**Prazo:** {dias} dia(s)")
+
+            with colt:
+                st.subheader("⏱️ Melhor prazo")
+                st.write(f"**Transportadora/serviço:** {bt.get('company',{}).get('name','-')} {bt.get('service','')}")
+                st.write(f"**Preço:** R${float(bt.get('price',0)):.2f}")
+                dias = (bt.get('delivery_time') or {}).get('days')
+                if dias: st.write(f"**Prazo:** {dias} dia(s)")
+
+    st.divider()
+    st.caption(f"Peso real informado: **{peso:.3f} kg** | Peso cubado do item (fator 6000): **{cubado_item:.3f} kg**.")
+    st.caption("Aviso: recomendações e estimativas são educativas; valide com seu fornecedor e política de envio.")
+
+    # CTA final
+    st.link_button("Emitir seu frete com a SuperFrete", "https://web.superfrete.com/#/calcular-correios")
+
+    # Raw JSON (técnico)
+    with st.expander("Ver resposta técnica (JSON)"):
+        st.json(result, expanded=False)
+
+else:
+    st.info("Preencha os campos e clique em **Gerar recomendação** para ver sua consultoria + simulação de frete.")
+    st.caption("Use medidas em cm e pense na menor volumetria que ainda proteja o produto (reduz cubagem).")
