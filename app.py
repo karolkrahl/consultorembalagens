@@ -8,6 +8,54 @@ from openai import OpenAI
 # ============== CONFIG ==============
 st.set_page_config(page_title="Consultor de Embalagens • SuperFrete", page_icon="📦", layout="centered")
 
+# ============== CSS CUSTOM ==============
+st.markdown("""
+    <style>
+        /* Fonte global */
+        html, body, [class*="css"]  {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* Cor de destaque */
+        .stButton>button {
+            background-color: #0fae79;
+            color: white;
+            border-radius: 6px;
+            padding: 0.6em 1.2em;
+            font-weight: 600;
+            border: none;
+        }
+        .stButton>button:hover {
+            background-color: #0c9467;
+            color: white;
+        }
+
+        /* Títulos e métricas */
+        h1, h2, h3, h4, h5, h6 {
+            color: #0fae79;
+            font-weight: 700;
+        }
+        .stMetric label {
+            color: #0fae79 !important;
+            font-weight: bold;
+        }
+
+        /* Links e marcações */
+        a, .css-1v3fvcr {
+            color: #0fae79 !important;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# Fonte Google
+st.markdown("""
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+""", unsafe_allow_html=True)
+
 # Read API key from environment
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
